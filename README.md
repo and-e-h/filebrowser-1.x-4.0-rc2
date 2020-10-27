@@ -2,7 +2,7 @@ Filebrowser
 ---------------------
 
 The FileBrowser module displays contents of a given directory as a node on your Backdrop site.
-It is a direct port of the Drupal 7.x-3.x module.
+It is a direct port of the Drupal 7.x-4.0-rc2 module.
 
 CONTENTS OF THIS FILE
 ---------------------
@@ -22,22 +22,17 @@ CONTENTS OF THIS FILE
 TESTED
 -----
 
-Working perfectly in Backdrop 1.2+.
+Working perfectly in Backdrop 1.7.1+
 
 KNOWN ISSUES
 ---------------------
 
-Amazon S3 hosting is not ported/tested yet.  Contact if you would like this functionality.
-
-SPECIAL THANKS
---------------
-
-This module port has been sponsored by VR Sites. (http://beta.vrsites.com)  Special thanks to them!
+Amazon S3 hosting is not ported/tested.
 
 REQUIREMENTS
 ------------
 
-none
+Plupload is optional, but provides support for multiple file uploads.
 
 INSTALLATION
 ------------
@@ -90,13 +85,11 @@ Susurrus <http://drupal.org/user/118433>
 
 Arnumeral <http://arnumeral.fr/>
 
-This module port has been sponsored by VR Sites. (http://beta.vrsites.com)
-
 MAINTAINERS
 -----------
 
-- biolithic <https://github.com/biolithic>
+- and-e-h <https://gituhb.com/and-e-h>
 
 Ported to Backdrop by:
 
-- biolithic <https://github.com/biolithic>
+- and-e-h <https://github.com/and-e-h>
