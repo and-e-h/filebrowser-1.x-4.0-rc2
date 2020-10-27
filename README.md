@@ -2,7 +2,7 @@ Filebrowser
 ---------------------
 
 The FileBrowser module displays contents of a given directory as a node on your Backdrop site.
-It is a direct port of the Drupal 7.x-4.0-rc2 module.
+It is a direct port of the Drupal 7.x-4.0-rc2 module. Multiple file uploads are supported if the Plupload module is installed on your Backdrop site.
 
 CONTENTS OF THIS FILE
 ---------------------
