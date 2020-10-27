@@ -88,7 +88,7 @@ Arnumeral <http://arnumeral.fr/>
 MAINTAINERS
 -----------
 
-- and-e-h <https://gituhb.com/and-e-h>
+- and-e-h <https://github.com/and-e-h>
 
 Ported to Backdrop by:
 
