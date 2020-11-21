@@ -302,7 +302,7 @@ function filebrowser_form(&$node, &$form_state) {
 /**
  * Implements hook_validate().
  */
-function filebrowser_validate(& $node) {
+function filebrowser_validate(&$node) {
   $node->folder_presentation = (object)$node->folder_presentation;
   $path = _filebrowser_get_node_root($node);                  // get the folder path
   $encoded_path = _filebrowser_encoding_to_fs($node, $path);
