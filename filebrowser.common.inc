@@ -54,102 +54,102 @@ define('FILEBROWSER_DATA_NAME_DESCRIPTION', 'description');
 /**
  * Metadata access handler (see hook_menu).
  */
-function _filebrowser_metadata_access($fid) {
-  //debug  echo '_filebrowser_metadata_access || fid is ; ' . $fid . '<br>';
-  $content = _filebrowser_node_content_load($fid);
-  $node = node_load($content['nid']);
-  return $node->type == 'dir_listing' && node_access("update", $node);
-}
+ function _filebrowser_metadata_access($fid): bool {
+   //debug  echo '_filebrowser_metadata_access || fid is ; ' . $fid . '<br>';
+   $content = _filebrowser_node_content_load($fid);
+   $node = node_load($content['nid']);
+   return $node->type == 'dir_listing' && node_access("update", $node);
+ }
 
-/**
- * Helper function to get node folder with correct token replacements. Never
- * use $node->folder_path directly !!!
- * @param $node
- * @return folder path
- */
-function _filebrowser_get_node_root(& $node) {
-  $result = $node->folder_path;
-  // token_replace is in D7 core *** if (module_exists("token")) {
-  $result = token_replace($result, array('type' => 'global', 'object' => NULL, 'leading' => '[', $trailing = ']'));
-  return $result;
-}
+ /**
+  * Helper function to get node folder with correct token replacements. Never
+  * use $node->folder_path directly !!!
+  * @param $node
+  * @return folder path
+  */
+ function _filebrowser_get_node_root(& $node) {
+   $result = $node->folder_path;
+   // token_replace is in D7 core *** if (module_exists("token")) {
+   $result = token_replace($result, array('type' => 'global', 'object' => NULL, 'leading' => '[', $trailing = ']'));
+   return $result;
+ }
 
 /**
  * Prepare node record to be used. This is mainly about default stuff.
  * @param $node node to prepage
  * @param $load is this for loading (TRUE) or inserting/updating (FALSE)
  */
-function _filebrowser_prepare_record(& $node, $load = TRUE) {
-  // Fix trailing slashes
-  $node->folder_path = rtrim($node->folder_path, '/');
+ function _filebrowser_prepare_record(& $node, $load = TRUE): void {
+   // Fix trailing slashes
+   $node->folder_path = rtrim($node->folder_path, '/');
 
-  // Process uploads
-  $node->folder_uploads = (object)$node->folder_uploads;
-  _filebrowser_set_default($node->folder_uploads->enabled, FALSE);
-  _filebrowser_set_default($node->folder_uploads->allow_overwrite, FALSE);
-  _filebrowser_set_default($node->folder_uploads->accepted_uploaded_files, '');
+   // Process uploads
+   $node->folder_uploads = (object)$node->folder_uploads;
+   _filebrowser_set_default($node->folder_uploads->enabled, FALSE);
+   _filebrowser_set_default($node->folder_uploads->allow_overwrite, FALSE);
+   _filebrowser_set_default($node->folder_uploads->accepted_uploaded_files, '');
 
-  // Process handlers
-  $node->folder_uploads = (object)$node->folder_uploads;
-  foreach (module_implements("filebrowser_handler_info") as $module) {
-    if (isset($node->$module)) {
-      $node->file_handlers->$module = $node->$module;
-      unset($node->$module);
-    }
-    $node->file_handlers = (object)$node->file_handlers;
-    $node->file_handlers->$module = (object)($node->file_handlers->$module);
-  }
+   // Process handlers
+   $node->folder_uploads = (object)$node->folder_uploads;
+   foreach (module_implements("filebrowser_handler_info") as $module) {
+     if (isset($node->$module)) {
+       $node->file_handlers->$module = $node->$module;
+       unset($node->$module);
+     }
+     $node->file_handlers = (object)$node->file_handlers;
+     $node->file_handlers->$module = (object)($node->file_handlers->$module);
+   }
 
-  // Fix rights
-  $node->folder_rights = (object)$node->folder_rights;
-  unset($node->folder_rights->private_downloads);
-  _filebrowser_set_default($node->folder_rights->explore_subdirs, FALSE);
-  _filebrowser_set_default($node->folder_rights->create_folders, FALSE);
-  _filebrowser_set_default($node->folder_rights->download_archive, FALSE);
-  _filebrowser_set_default($node->folder_rights->forbidden_files, "descript.ion\nfile.bbs\n.git\nCSV\n.svn\n");
-  _filebrowser_set_default($node->folder_rights->filtered_files, "");
-  if (!isset($node->folder_rights->download_manager) || !_filebrowser_externals('download_manager_info', $node->folder_rights->download_manager)) {
-    $node->folder_rights->download_manager = 'public';
-  }
+   // Fix rights
+   $node->folder_rights = (object)$node->folder_rights;
+   unset($node->folder_rights->private_downloads);
+   _filebrowser_set_default($node->folder_rights->explore_subdirs, FALSE);
+   _filebrowser_set_default($node->folder_rights->create_folders, FALSE);
+   _filebrowser_set_default($node->folder_rights->download_archive, FALSE);
+   _filebrowser_set_default($node->folder_rights->forbidden_files, "descript.ion\nfile.bbs\n.git\nCSV\n.svn\n");
+   _filebrowser_set_default($node->folder_rights->filtered_files, "");
+   if (!isset($node->folder_rights->download_manager) || !_filebrowser_externals('download_manager_info', $node->folder_rights->download_manager)) {
+     $node->folder_rights->download_manager = 'public';
+   }
 
-  // Fix presentation
-  $node->folder_presentation = (object)$node->folder_presentation;
-  _filebrowser_set_default($node->folder_presentation->encoding, 'UTF8');
-  if (!isset($node->folder_presentation->default_view) || !_filebrowser_externals('presentations', $node->folder_presentation->default_view)) {
-    $node->folder_presentation->default_view = 'list-view';
-  }
-  _filebrowser_set_default($node->folder_presentation->hide_extension, FALSE);
-  $columns = _filebrowser_externals('metadata_info');
-  $node->folder_presentation->visible_columns = _filebrowser_filter_checkboxes_result($node->folder_presentation->visible_columns);
-  foreach ($node->folder_presentation->visible_columns as $name => $value) {
-    if (!isset($columns[$name])) {
-      unset($node->folder_presentation->visible_columns[$name]);
-    }
-  }
-  if (count($node->folder_presentation->visible_columns) == 0) {
-    $node->folder_presentation->visible_columns = array(
-        FILEBROWSER_DATA_NAME_ICON => 1,
-        FILEBROWSER_DATA_NAME_DISPLAY_NAME => 1
-    );
-  }
-  if (!isset($node->folder_presentation->default_sort)) {
-    foreach ($node->folder_presentation->visible_columns as $name => $foo) {
-      if (isset($columns[$name]['sortable']) && $columns[$name]['sortable']) {
-        $node->folder_presentation->default_sort = $name;
-        break;
-      }
-    }
-  }
-  _filebrowser_set_default($node->folder_presentation->default_sort_order, 'asc');
+   // Fix presentation
+   $node->folder_presentation = (object)$node->folder_presentation;
+   _filebrowser_set_default($node->folder_presentation->encoding, 'UTF8');
+   if (!isset($node->folder_presentation->default_view) || !_filebrowser_externals('presentations', $node->folder_presentation->default_view)) {
+     $node->folder_presentation->default_view = 'list-view';
+   }
+   _filebrowser_set_default($node->folder_presentation->hide_extension, FALSE);
+   $columns = _filebrowser_externals('metadata_info');
+   $node->folder_presentation->visible_columns = _filebrowser_filter_checkboxes_result($node->folder_presentation->visible_columns);
+   foreach ($node->folder_presentation->visible_columns as $name => $value) {
+     if (!isset($columns[$name])) {
+       unset($node->folder_presentation->visible_columns[$name]);
+     }
+   }
+   if (count($node->folder_presentation->visible_columns) == 0) {
+     $node->folder_presentation->visible_columns = array(
+         FILEBROWSER_DATA_NAME_ICON => 1,
+         FILEBROWSER_DATA_NAME_DISPLAY_NAME => 1
+     );
+   }
+   if (!isset($node->folder_presentation->default_sort)) {
+     foreach ($node->folder_presentation->visible_columns as $name => $foo) {
+       if (isset($columns[$name]['sortable']) && $columns[$name]['sortable']) {
+         $node->folder_presentation->default_sort = $name;
+         break;
+       }
+     }
+   }
+   _filebrowser_set_default($node->folder_presentation->default_sort_order, 'asc');
 
-  // Create serialized properties
-  $data = new stdClass();
-  $data->folder_rights = $node->folder_rights;
-  $data->folder_presentation = $node->folder_presentation;
-  $data->folder_uploads = $node->folder_uploads;
-  $data->file_handlers = isset($node->file_handlers) ? $node->file_handlers : '';
-  $node->properties = serialize($data);
-}
+   // Create serialized properties
+   $data = new stdClass();
+   $data->folder_rights = $node->folder_rights;
+   $data->folder_presentation = $node->folder_presentation;
+   $data->folder_uploads = $node->folder_uploads;
+   $data->file_handlers = isset($node->file_handlers) ? $node->file_handlers : '';
+   $node->properties = serialize($data);
+ }
 
 /**
  * This function is used to invoke filebrowser_$kind hooks. Difference with a direct
@@ -159,36 +159,39 @@ function _filebrowser_prepare_record(& $node, $load = TRUE) {
  * @param $name the name of the resource retreived by the hook (used as hook
  * parameter and cache index)
  */
-function _filebrowser_externals($kind, $name = NULL) {
-  static $externals = array();
-  if (!isset($externals[$kind])) {
-    $externals[$kind] = module_invoke_all("filebrowser_$kind");
-  }
-  if (!is_null($name)) {
-    return isset($externals[$kind][$name]) ? $externals[$kind][$name] : NULL;
-  }
-  return $externals[$kind];
-}
+ function _filebrowser_externals($kind, $name = NULL) {
+   static $externals = array();
+   if (!isset($externals[$kind])) {
+     $externals[$kind] = module_invoke_all("filebrowser_$kind");
+   }
+   if (!is_null($name)) {
+     return isset($externals[$kind][$name]) ? $externals[$kind][$name] : NULL;
+   }
+   return $externals[$kind];
+ }
 
-/**
- * Build an URL with current pager settings.
- * @param $href target href
- * @return URL
- */
-function _filebrowser_folder_url($href, $options = array()) {
-  $options['query']  = _filebrowser_url_query($options);
-  return url($href, $options);
-}
+ /**
+  * Build an URL with current pager settings.
+  * @param $href target href
+  * @return URL
+  */
+ function _filebrowser_folder_url($href, array $options = array()) {
+   $options['query']  = _filebrowser_url_query($options);
+   return url($href, $options);
+ }
 
-function _filebrowser_url_query($options = array()) {
-  $query = array();
-  foreach ($_GET as $key => $value) {
-    if ($key != 'q') {
-      $query[$key] = urlencode(filter_xss($value));
-    }
-  }
-  return $query;
-}
+ /**
+  * @return string[]
+  */
+ function _filebrowser_url_query($options = array()): array {
+   $query = array();
+   foreach ($_GET as $key => $value) {
+     if ($key != 'q') {
+       $query[$key] = urlencode(filter_xss($value));
+     }
+   }
+   return $query;
+ }
 
 /**
  * Convert a string from FileSystem encoding to UTF-8.
@@ -198,39 +201,39 @@ function _filebrowser_url_query($options = array()) {
  *
  * @return re-encoded string
  */
-function _filebrowser_encoding_from_fs(&$node, $source) {
-  // Issue #2660282
-  if (!is_string($node->folder_presentation->encoding) || strcasecmp($node->folder_presentation->encoding, 'UTF-8')) {
-      return $source;
-    }
-    else {
-      return mb_convert_encoding($source, "UTF-8", $node->folder_presentation->encoding);
-    }
-}
+ function _filebrowser_encoding_from_fs(&$node, $source) {
+   // Issue #2660282
+   if (!is_string($node->folder_presentation->encoding) || strcasecmp($node->folder_presentation->encoding, 'UTF-8')) {
+       return $source;
+     }
+     else {
+       return mb_convert_encoding($source, "UTF-8", $node->folder_presentation->encoding);
+     }
+ }
 
-/**
- * Convert a string from UTF-8 to FileSystem encoding.
- *
- * @param $node which provide FileSystem encoding information.
- * @param $source source string
- *
- * @return re-encoded string
- */
-function _filebrowser_encoding_to_fs(&$node, $source) {
-  // debug echo 'source : ' . $source . '<br>';
-  return strcasecmp($node->folder_presentation->encoding, 'UTF-8') == 0 ? $source : mb_convert_encoding($source, $node->folder_presentation->encoding, "UTF-8");
-}
+ /**
+  * Convert a string from UTF-8 to FileSystem encoding.
+  *
+  * @param $node which provide FileSystem encoding information.
+  * @param $source source string
+  *
+  * @return re-encoded string
+  */
+ function _filebrowser_encoding_to_fs(&$node, $source) {
+   // debug echo 'source : ' . $source . '<br>';
+   return strcasecmp($node->folder_presentation->encoding, 'UTF-8') == 0 ? $source : mb_convert_encoding($source, $node->folder_presentation->encoding, "UTF-8");
+ }
 
-/**
- * remove all content bits from parent node id.
- */
-function _filebrowser_node_content_delete($node) {
-  db_query("
-    DELETE
-    FROM {node_dir_listing_content}
-    WHERE
-      nid = :nid", array(':nid' => $node->nid));
-}
+ /**
+  * remove all content bits from parent node id.
+  */
+ function _filebrowser_node_content_delete($node): void {
+   db_query("
+     DELETE
+     FROM {node_dir_listing_content}
+     WHERE
+       nid = :nid", array(':nid' => $node->nid));
+ }
 
 /**
  * Load a specific node content.
@@ -238,15 +241,15 @@ function _filebrowser_node_content_delete($node) {
  * @param $fid content fid
  * @return content record
  */
-function _filebrowser_node_content_load($fid) {
-  static $contents = array();
-  if (isset($contents[$fid])) {
-    return $contents[$fid];
-  }
-  $query = "SELECT * FROM {node_dir_listing_content} WHERE fid = :fid";
-  $contents[$fid] = db_query($query, array(':fid' => $fid))->fetchAssoc();
-  return $contents[$fid];
-}
+ function _filebrowser_node_content_load($fid) {
+   static $contents = array();
+   if (isset($contents[$fid])) {
+     return $contents[$fid];
+   }
+   $query = "SELECT * FROM {node_dir_listing_content} WHERE fid = :fid";
+   $contents[$fid] = db_query($query, array(':fid' => $fid))->fetchAssoc();
+   return $contents[$fid];
+ }
 
 /**
  * Load data from current path.
@@ -593,7 +596,7 @@ function _filebrowser_read_description($file_path) {
   }
 }
 
-function _filebrowser_save_description_file($data) {
+function _filebrowser_save_description_file(array $data): void {
   $output = array();
   foreach ($data['data'] as $key => $value) {
     $value = str_replace(array(
@@ -608,7 +611,7 @@ function _filebrowser_save_description_file($data) {
   file_put_contents($data['file'], implode("\n", $output));
 }
 
-function _filebrowser_load_description_file($path, $replace = NULL) {
+function _filebrowser_load_description_file(string $path, $replace = NULL) {
   static $descriptions = array();
   if ($replace) {
     $descriptions[$path] = $replace;
@@ -625,14 +628,14 @@ function _filebrowser_load_description_file($path, $replace = NULL) {
   if (file_exists($description_file)) {
       $descriptions[$path]['file'] = $description_file;
       foreach (file($description_file) as $line) {
-        if (trim($line) == '' || strpos(trim($line), '#') === 0) {
+        if (trim($line) === '' || str_starts_with(trim($line), '#')) {
           continue;
         }
         $matches = array();
         preg_match('/"([^"]+)"\s+(.*)|(\S+)\s+(.*)/', $line, $matches);
-        $name = !empty($matches[1]) ? $matches[1] : $matches[3];
+        $name = empty($matches[1]) ? $matches[3] : $matches[1];
         // FIXME JSJ Changed to matches[1] because 4 givers error
-        $description = !empty($matches[2]) ? $matches[2] : $matches[1];
+        $description = empty($matches[2]) ? $matches[1] : $matches[2];
         $description = str_replace('\n', "\n", $description);
         if (isset($descriptions[$path][$name])) {
           $descriptions[$path]['data'][$name] .= ' ' . trim($description);
@@ -649,37 +652,37 @@ function _filebrowser_load_description_file($path, $replace = NULL) {
 /**
  * Check if user can download ZIP archives.
  */
-function _filebrowser_can_download_archive(& $node) {
-  return (node_access('view', $node) && $node->folder_rights->download_archive && user_access(FILEBROWSER_DOWNLOAD_ARCHIVE));
-}
+ function _filebrowser_can_download_archive(& $node): bool {
+   return (node_access('view', $node) && $node->folder_rights->download_archive && user_access(FILEBROWSER_DOWNLOAD_ARCHIVE));
+ }
 
-/**
- * Check if user can download files.
- */
-function _filebrowser_can_download_file(& $node) {
-  return (node_access('view', $node) && user_access(FILEBROWSER_DOWNLOAD));
-}
+ /**
+  * Check if user can download files.
+  */
+ function _filebrowser_can_download_file(& $node): bool {
+   return (node_access('view', $node) && user_access(FILEBROWSER_DOWNLOAD));
+ }
 
-/**
- * Check if user can view a specific file.
- */
-function _filebrowser_can_view_file(& $node, $file) {
-  return trim($node->folder_rights->filtered_files) == '' || _filebrowser_match_path($file, $node->folder_rights->filtered_files);
-}
+ /**
+  * Check if user can view a specific file.
+  */
+ function _filebrowser_can_view_file(& $node, $file): bool {
+   return trim($node->folder_rights->filtered_files) === '' || _filebrowser_match_path($file, $node->folder_rights->filtered_files);
+ }
 
-/**
- * Check if user should not view a specific file.
- */
-function _filebrowser_cant_view_file(& $node, $file) {
-  return trim($node->folder_rights->forbidden_files) != '' && _filebrowser_match_path($file, $node->folder_rights->forbidden_files);
-}
+ /**
+  * Check if user should not view a specific file.
+  */
+ function _filebrowser_cant_view_file(& $node, $file): bool {
+   return trim($node->folder_rights->forbidden_files) !== '' && _filebrowser_match_path($file, $node->folder_rights->forbidden_files);
+ }
 
-/**
- * Check if user can explore sub-folders.
- */
-function _filebrowser_can_explore_subfolders(& $node) {
-  return $node->folder_rights->explore_subdirs;
-}
+ /**
+  * Check if user can explore sub-folders.
+  */
+ function _filebrowser_can_explore_subfolders(& $node) {
+   return $node->folder_rights->explore_subdirs;
+ }
 
 /**
  * Create a thumbnail and the associated XHTML code for a specific file.
@@ -687,42 +690,42 @@ function _filebrowser_can_explore_subfolders(& $node) {
  * @param $file source file
  * @return XHTML code
  */
-function _filebrowser_thumbnails_generate(& $node, & $file) {
-  static $thumbnailers = NULL;
-  if (!$thumbnailers) {
-    $thumbnailers = module_implements("filebrowser_thumbnailer_get");
-  }
-  if (count($thumbnailers) != 0) {
-    foreach ($thumbnailers as $thumbnailer) {
-      if ($node->file_handlers->$thumbnailer->enabled_thumbnailer) {
-        $thumbnail = module_invoke($thumbnailer, "filebrowser_thumbnailer_get", $file, $node->file_handlers->$thumbnailer);
-        if ($thumbnail) {
-          return $thumbnail;
-        }
-      }
-    }
-  }
-  $main_type = dirname($file['mime-type']);
-  $mime_type = str_replace("/", "-", $file['mime-type']);
-  $module_path = backdrop_get_path("module", "filebrowser") . "/icons/";
-  $theme_path = backdrop_get_path('theme', $GLOBALS['theme']) . "/filebrowser/";
-  
-  $icons = array(
-    $theme_path . $mime_type . ".png",
-    $theme_path . $main_type . ".png",
-    $module_path . $mime_type . ".png",
-    $module_path . $main_type . ".png"
-  );
-  $elligible =  $module_path . "unknown.png";
-  foreach ($icons as $icon) {
-    if (file_exists($icon)) {
-      $elligible = $icon;
-      break;
-    }
-  }
-  $stuff = theme('image', array('uri' => $icon, 'alt' => 'alt text'));
-  return $stuff;
-}
+ function _filebrowser_thumbnails_generate(& $node, array & $file) {
+   static $thumbnailers = NULL;
+   if (!$thumbnailers) {
+     $thumbnailers = module_implements("filebrowser_thumbnailer_get");
+   }
+   if (count($thumbnailers) != 0) {
+     foreach ($thumbnailers as $thumbnailer) {
+       if ($node->file_handlers->$thumbnailer->enabled_thumbnailer) {
+         $thumbnail = module_invoke($thumbnailer, "filebrowser_thumbnailer_get", $file, $node->file_handlers->$thumbnailer);
+         if ($thumbnail) {
+           return $thumbnail;
+         }
+       }
+     }
+   }
+   $main_type = dirname((string) $file['mime-type']);
+   $mime_type = str_replace("/", "-", $file['mime-type']);
+   $module_path = backdrop_get_path("module", "filebrowser") . "/icons/";
+   $theme_path = backdrop_get_path('theme', $GLOBALS['theme']) . "/filebrowser/";
+
+   $icons = array(
+     $theme_path . $mime_type . ".png",
+     $theme_path . $main_type . ".png",
+     $module_path . $mime_type . ".png",
+     $module_path . $main_type . ".png"
+   );
+   $elligible =  $module_path . "unknown.png";
+   foreach ($icons as $icon) {
+     if (file_exists($icon)) {
+       $elligible = $icon;
+       break;
+     }
+   }
+   $stuff = theme('image', array('uri' => $icon, 'alt' => 'alt text'));
+   return $stuff;
+ }
 
 /**
  * @param form_state
@@ -730,54 +733,56 @@ function _filebrowser_thumbnails_generate(& $node, & $file) {
  * @param path_info_new
  * @param path_info_old
  */
-function _filebrowser_build_new_upload_file_name($node, $form_state, $i) {
-  $file_name = $_FILES['files']['name']["file_$i"];
-  if (!empty($form_state['values']["file_name_$i"])) {
-    $path_info_new = pathinfo($form_state['values']["file_name_$i"]);
-    $path_info_old = pathinfo($file_name);
-    $file_name = $path_info_new['filename'];
-    if (isset($path_info_old['extension'])) {
-      $file_name .= ".{$path_info_old['extension']}";
-    }
-  }
-  //debug($file_name, 'Line 709 - file name processed by _filebrowser_build_new_upload_file_name');
-  _filebrowser_load_files($node);
+ function _filebrowser_build_new_upload_file_name($node, array $form_state, $i) {
+   $file_name = $_FILES['files']['name']["file_$i"];
+   if (!empty($form_state['values']["file_name_$i"])) {
+     $path_info_new = pathinfo((string) $form_state['values']["file_name_$i"]);
+     $path_info_old = pathinfo((string) $file_name);
+     $file_name = $path_info_new['filename'];
+     if (isset($path_info_old['extension'])) {
+       $file_name .= ".{$path_info_old['extension']}";
+     }
+   }
+   //debug($file_name, 'Line 709 - file name processed by _filebrowser_build_new_upload_file_name');
+   _filebrowser_load_files($node);
 
-  $target = _filebrowser_encoding_to_fs($node, $node->file_listing['.']['full-path'] . "/" . $file_name);
-  return $target;
-}
+   $target = _filebrowser_encoding_to_fs($node, $node->file_listing['.']['full-path'] . "/" . $file_name);
+   return $target;
+ }
 
-/**
- * @param array $form_state
- * @param Object $node
- * @return string
- */
-function _filebrowser_build_plupload_file_name($node, $form_state) {
-  $file_name = $_FILES['files']['name']["file"];
-//  if (!empty($form_state['values']["file_name"])) {
-//    $path_info_new = pathinfo($form_state['values']["file_name"]);
-//    $path_info_old = pathinfo($file_name);
-//    $file_name = $path_info_new['filename'];
-//    if (isset($path_info_old['extension'])) {
-//      $file_name .= ".{$path_info_old['extension']}";
-//    }
-//  }
-  _filebrowser_load_files($node);
+ /**
+  * @param array $form_state
+  * @param Object $node
+  * @return string
+  */
+ function _filebrowser_build_plupload_file_name($node, $form_state) {
+   $file_name = $_FILES['files']['name']["file"];
+ //  if (!empty($form_state['values']["file_name"])) {
+ //    $path_info_new = pathinfo($form_state['values']["file_name"]);
+ //    $path_info_old = pathinfo($file_name);
+ //    $file_name = $path_info_new['filename'];
+ //    if (isset($path_info_old['extension'])) {
+ //      $file_name .= ".{$path_info_old['extension']}";
+ //    }
+ //  }
+   _filebrowser_load_files($node);
 
-  $target = _filebrowser_encoding_to_fs($node, $node->file_listing['.']['full-path'] . "/" . $file_name);
-  return $target;
-}
+   $target = _filebrowser_encoding_to_fs($node, $node->file_listing['.']['full-path'] . "/" . $file_name);
+   return $target;
+ }
 
 // JSJ DEBUG HELPER -  REMOVE
-function debugPrintCallingFunction () {
+function debugPrintCallingFunction (): void {
   $file = 'n/a';
   $func = 'n/a';
   $line = 'n/a';
   $debugTrace = debug_backtrace();
   if (isset($debugTrace[1])) {
-    $file = $debugTrace[1]['file'] ? $debugTrace[1]['file'] : 'n/a';
-    $line = $debugTrace[1]['line'] ? $debugTrace[1]['line'] : 'n/a';
+    $file = $debugTrace[1]['file'] !== '' && $debugTrace[1]['file'] !== '0' ? $debugTrace[1]['file'] : 'n/a';
+    $line = $debugTrace[1]['line'] !== 0 ? $debugTrace[1]['line'] : 'n/a';
   }
-    if (isset($debugTrace[2])) $func = $debugTrace[2]['function'] ? $debugTrace[2]['function'] : 'n/a';
+    if (isset($debugTrace[2])) {
+        $func = $debugTrace[2]['function'] !== '' && $debugTrace[2]['function'] !== '0' ? $debugTrace[2]['function'] : 'n/a';
+    }
     echo "<pre>\n$file, $func, $line\n</pre>";
 }

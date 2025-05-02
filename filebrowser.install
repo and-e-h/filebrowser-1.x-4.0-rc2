@@ -26,134 +26,137 @@
  * @file
  * filbrowser installation file.
  */
-function filebrowser_schema() {
-  $schema = array();
-  $schema['node_dir_listing'] = array(
-    'fields' => array(
-      'nid' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE
-      ),
-      'folder_path' => array(
-        'type' => 'varchar',
-        'length' => '255',
-        'not null' => TRUE
-      ),
+ function filebrowser_schema(): array
+ {
+     return ['node_dir_listing' => array(
+       'fields' => array(
+         'nid' => array(
+           'type' => 'int',
+           'unsigned' => TRUE,
+           'not null' => TRUE
+         ),
+         'folder_path' => array(
+           'type' => 'varchar',
+           'length' => '255',
+           'not null' => TRUE
+         ),
 
-      'properties' => array(
-        'type' => 'text',
-        'not null' => TRUE,
-        'size' => 'big'
-      )
-    ),
-    'primary key' => array( 'nid' )
-  );
+         'properties' => array(
+           'type' => 'text',
+           'not null' => TRUE,
+           'size' => 'big'
+         )
+       ),
+       'primary key' => array( 'nid' )
+     ), 'node_dir_listing_content' => array(
+       'fields' => array(
+         'nid' => array(
+           'type' => 'int',
+           'unsigned' => TRUE,
+           'not null' => TRUE
+         ),
+         'fid' => array(
+           'type' => 'serial',
+           'unsigned' => TRUE,
+           'not null' => TRUE
+         ),
+         'root' => array(
+           'type' => 'varchar',
+           'length' => '255',
+           'not null' => TRUE
+         ),
+         'path' => array(
+           'type' => 'varchar',
+           'length' => '255',
+           'not null' => TRUE
+         )
+       ),
+       'primary key' => array( 'fid' ),
+       'unique keys' => array(
+         'nid_fid' => array( 'nid', 'fid' ),
+         'fid' => array( 'fid' )
+       )
+     )];
+ }
 
-  $schema['node_dir_listing_content'] = array(
-    'fields' => array(
-      'nid' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE
-      ),
-      'fid' => array(
-        'type' => 'serial',
-        'unsigned' => TRUE,
-        'not null' => TRUE
-      ),
-      'root' => array(
-        'type' => 'varchar',
-        'length' => '255',
-        'not null' => TRUE
-      ),
-      'path' => array(
-        'type' => 'varchar',
-        'length' => '255',
-        'not null' => TRUE
-      )
-    ),
-    'primary key' => array( 'fid' ),
-    'unique keys' => array(
-      'nid_fid' => array( 'nid', 'fid' ),
-      'fid' => array( 'fid' )
-    )
-  );
-  return $schema;
-}
+ function filebrowser_install(): void {
+   $t = get_t();
+   node_types_rebuild();
+   $types = node_type_get_types();
+   // add body field to dir_listing content_type
+   node_add_body_field($types['dir_listing']);
+   // configure the bodyfield the way filebrowser wants it
+   $body_instance = field_info_instance('node', 'body', 'dir_listing');
+   $body_instance['label'] = $t('Description');
+   $body_instance['widget']['settings']['rows'] = 4;
+   field_update_instance($body_instance);
+ }
 
-function filebrowser_install() {
-  $t = get_t();
-  node_types_rebuild();
-  $types = node_type_get_types();
-  // add body field to dir_listing content_type
-  node_add_body_field($types['dir_listing']);
-  // configure the bodyfield the way filebrowser wants it
-  $body_instance = field_info_instance('node', 'body', 'dir_listing');
-  $body_instance['label'] = $t('Description');
-  $body_instance['widget']['settings']['rows'] = 4;
-  field_update_instance($body_instance);
-}
+ function filebrowser_uninstall(): void {
+   $sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
+   $result = db_query($sql, array(':type' => 'dir_listing'));
+   $nids = array();
+   foreach ($result as $row) {
+     $nids[] = $row->nid;
+   }
+   // http://api.drupal.org/api/function/node_delete_multiple/7
+   node_delete_multiple($nids);
+   // http://api.drupal.org/api/function/node_type_delete/7
+   node_type_delete('dir_listing');
+ }
 
-function filebrowser_uninstall() {
-  $sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
-  $result = db_query($sql, array(':type' => 'dir_listing'));
-  $nids = array();
-  foreach ($result as $row) {
-    $nids[] = $row->nid;
-  }
-  // http://api.drupal.org/api/function/node_delete_multiple/7
-  node_delete_multiple($nids);
-  // http://api.drupal.org/api/function/node_type_delete/7
-  node_type_delete('dir_listing');
-}
+ // Update from 5.x-1.x to 6.x-1.x
+ /**
+  * @return mixed[]
+  */
+ function filebrowser_update_6100(): array {
 
-// Update from 5.x-1.x to 6.x-1.x
-function filebrowser_update_6100() {
+   $ret = array();
 
-  $ret = array();
+   // Add the old directory listing into the new database structure given that
+   // this old data exists and users haven't already upgraded manually.
+   global $conf;
+   if (isset($conf['filebrowser_root']) && !db_table_exists('filebrowser')) {
+     db_create_table($ret, 'filebrowser', array(
+       'fields' => array(
+         'path' => array(
+           'type' => 'varchar',
+           'length' => '255',
+           'not NULL' => TRUE
+         ),
+         'location' => array(
+           'type' => 'varchar',
+           'length' => '255',
+           'not NULL' => TRUE
+         ),
+         'can_explore' => array(
+           'type' => 'int',
+           'size' => 'tiny',
+           'not NULL' => TRUE,
+           'disp-width' => '1'
+         )
+       ),
+       'primary key' => array(
+         'path'
+       )
+     ));
 
-  // Add the old directory listing into the new database structure given that
-  // this old data exists and users haven't already upgraded manually.
-  global $conf;
-  if (isset($conf['filebrowser_root']) && !db_table_exists('filebrowser')) {
-    db_create_table($ret, 'filebrowser', array(
-      'fields' => array(
-        'path' => array(
-          'type' => 'varchar',
-          'length' => '255',
-          'not NULL' => TRUE
-        ),
-        'location' => array(
-          'type' => 'varchar',
-          'length' => '255',
-          'not NULL' => TRUE
-        ),
-        'can_explore' => array(
-          'type' => 'int',
-          'size' => 'tiny',
-          'not NULL' => TRUE,
-          'disp-width' => '1'
-        )
-      ),
-      'primary key' => array(
-        'path'
-      )
-    ));
+     $ret[] = update_sql("INSERT INTO {filebrowser} (path, location, can_explore) VALUES ('filebrowser', '{$conf['filebrowser_root']}', 1)");
+   }
 
-    $ret[] = update_sql("INSERT INTO {filebrowser} (path, location, can_explore) VALUES ('filebrowser', '{$conf['filebrowser_root']}', 1)");
-  }
+   // Clean up variables from 5.x branch
+   variable_del('filebrowser_icons');
+   variable_del('filebrowser_root');
+   variable_del('filebrowser_hide_description_files');
 
-  // Clean up variables from 5.x branch
-  variable_del('filebrowser_icons');
-  variable_del('filebrowser_root');
-  variable_del('filebrowser_hide_description_files');
-
-  return $ret;
-}
+   return $ret;
+ }
 
 // Update from 6.x-1.x to 6.x-2.x
-function filebrowser_update_6200() {
+/**
+ * @return mixed[]
+ */
+function filebrowser_update_6200(): array {
 
   $ret = array();
 
@@ -223,7 +226,7 @@ function filebrowser_update_6200() {
 }
 
 // Update enabling private downloads
-function filebrowser_update_6201() {
+function filebrowser_update_6201(): array {
   $ret = array();
   db_add_field($ret, 'filebrowser', 'private_downloads', array(
     'type' => 'int',
@@ -235,7 +238,10 @@ function filebrowser_update_6201() {
   return $ret;
 }
 
-function filebrowser_update_6202() {
+/**
+ * @return mixed[]
+ */
+function filebrowser_update_6202(): array {
 
   $ret = array();
   // Add new fields
@@ -265,7 +271,7 @@ function filebrowser_update_6202() {
   return $ret;
 }
 
-function filebrowser_update_6203() {
+function filebrowser_update_6203(): array {
 
   $ret = array();
 
@@ -280,7 +286,7 @@ function filebrowser_update_6203() {
   return $ret;
 }
 
-function filebrowser_update_6204() {
+function filebrowser_update_6204(): array {
 
   $ret = array();
 
@@ -296,7 +302,7 @@ function filebrowser_update_6204() {
   return $ret;
 }
 
-function filebrowser_update_6205() {
+function filebrowser_update_6205(): array {
   $ret = array();
   // Add new fields
   db_add_field($ret, 'filebrowser', 'visible_columns', array(
@@ -309,7 +315,7 @@ function filebrowser_update_6205() {
   return $ret;
 }
 
-function filebrowser_update_6210() {
+function filebrowser_update_6210(): array {
   $ret = array();
   // Add new fields
   db_add_field($ret, 'filebrowser', 'allow_files_upload', array(
@@ -322,7 +328,10 @@ function filebrowser_update_6210() {
   return $ret;
 }
 
-function filebrowser_update_6211() {
+/**
+ * @return mixed[]
+ */
+function filebrowser_update_6211(): array {
   $ret = array();
   if (db_table_exists("node_dir_listing")) {
     db_drop_table($ret, "node_dir_listing");
@@ -333,17 +342,17 @@ function filebrowser_update_6211() {
   while ($node = db_fetch_object($cursor)) {
     $properties = (object)array(
       'folder_rights' => (object)array(
-        'explore_subdirs' => $node->explore_subdirs ? TRUE : FALSE,
-        'private_downloads' => $node->private_downloads ? TRUE : FALSE,
+        'explore_subdirs' => (bool) $node->explore_subdirs,
+        'private_downloads' => (bool) $node->private_downloads,
         'forbidden_files' => $node->hidden_files ? $node->hidden_files : '',
         'filtered_files' => $node->filtered_files ? $node->filtered_files : ''
       ),
       'folder_uploads' => (object)array(
-        'enabled' => $node->allow_files_upload ? TRUE : FALSE,
+        'enabled' => (bool) $node->allow_files_upload,
         'accepted_uploaded_files' => $node->allowed_uploaded_files ? $node->allowed_uploaded_files : ''
       ),
       'folder_presentation' => (object)array(
-        'hide_extension' => $node->hide_extension ? TRUE : FALSE,
+        'hide_extension' => (bool) $node->hide_extension,
         'visible_columns' => $node->visible_columns ? unserialize($node->visible_columns) : array(
           'icon' => TRUE,
           'display_name' => TRUE
@@ -360,7 +369,7 @@ function filebrowser_update_6211() {
   return $ret;
 }
 
-function filebrowser_update_sql($query) {
+function filebrowser_update_sql($query): array {
   $args = func_get_args();
   $result = call_user_func_array("db_query", $args);
   return array(
@@ -369,7 +378,7 @@ function filebrowser_update_sql($query) {
   );
 }
 
-function filebrowser_update_6212() {
+function filebrowser_update_6212(): array {
   $ret = array();
   if (db_column_exists('node_dir_listing', 'path')) {
     db_change_field($ret, 'node_dir_listing', 'path', 'folder_path', array(
@@ -381,14 +390,14 @@ function filebrowser_update_6212() {
   return $ret;
 }
 
-function filebrowser_update_6213() {
+function filebrowser_update_6213(): array {
   $ret = array();
   $schema = filebrowser_schema();
   db_create_table($ret, 'node_dir_listing_content', $schema['node_dir_listing_content']);
   return $ret;
 }
 
-function filebrowser_update_6214() {
+function filebrowser_update_6214(): array {
   $ret = array();
   db_add_field($ret, 'node_dir_listing_content', 'root', array(
       'type' => 'varchar',

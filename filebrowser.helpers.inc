@@ -12,7 +12,7 @@
  * @param $array source array
  * @return formapi checkboxes
  */
-function _filebrowser_filter_checkboxes_result($array) {
+function _filebrowser_filter_checkboxes_result($array): array {
   $result = array();
   if ($array) {
     foreach ($array as $key => $value) {
@@ -30,7 +30,7 @@ function _filebrowser_filter_checkboxes_result($array) {
  * @param $properties source array
  * @return formapi checkboxes
  */
-function _filebrowser_properties_to_checkboxes(& $properties) {
+function _filebrowser_properties_to_checkboxes(& $properties): array {
   $result = array();
   if ($properties) {
     foreach ($properties as $key => $value) {
@@ -45,8 +45,8 @@ function _filebrowser_properties_to_checkboxes(& $properties) {
 /**
  * UTF8 bullet-proof basename replacement.
  */
-function _filebrowser_safe_basename($path) {
-  $path = rtrim($path, '/');
+function _filebrowser_safe_basename($path): string {
+  $path = rtrim((string) $path, '/');
   $path = explode('/', $path);
   return end($path);
 }
@@ -54,12 +54,12 @@ function _filebrowser_safe_basename($path) {
 /**
  * UTF8 bullet-proof dirname replacement.
  */
-function _filebrowser_safe_dirname($path) {
-  $path = rtrim($path, '/');
+function _filebrowser_safe_dirname($path): string {
+  $path = rtrim((string) $path, '/');
   $path = explode('/', $path);
   array_pop($path);
   $result = implode("/", $path);
-  if ($result == '') {
+  if ($result === '') {
     return '/';
   }
   return $result;
@@ -81,13 +81,13 @@ function _filebrowser_match_path($path, $patterns) {
     ), array(
         '|',
         '.*'
-    ), preg_quote($patterns, '/')) . ')$/';
+    ), preg_quote((string) $patterns, '/')) . ')$/';
   }
-  $result = preg_match($regexps[$patterns], _filebrowser_safe_basename($path)) == 1;
+  $result = preg_match($regexps[$patterns], (string) _filebrowser_safe_basename($path)) == 1;
   return $result;
 }
 
-function _filebrowser_set_default(&$field, $value) {
+function _filebrowser_set_default(&$field, $value): void {
   if (!isset($field)) {
     $field = $value;
   }
@@ -105,8 +105,8 @@ function &_filebrowser_options($source) {
  * @param $sub element to search
  * @return return TRUE is a string ends with another string.
  */
-function _filebrowser_ends_with($str, $sub) {
-  return (substr($str, strlen($str) - strlen($sub)) == $sub);
+function _filebrowser_ends_with($str, $sub): bool {
+  return (substr((string) $str, strlen((string) $str) - strlen((string) $sub)) == $sub);
 }
 
 /**
@@ -116,7 +116,7 @@ function _filebrowser_ends_with($str, $sub) {
  * @param string $pattern
  * @return string
  */
-function _filebrowser_pattern_to_filter($pattern) {
+function _filebrowser_pattern_to_filter($pattern): string {
   $extensions = array();
   $filters = preg_split('/\R/', $pattern);
   foreach ($filters as $item) {
