@@ -27,6 +27,8 @@ Working perfectly in Backdrop 1.2+ with PHP 7.x.
 KNOWN ISSUES
 ---------------------
 
+Not compatible with PHP 8.x yet.
+
 Amazon S3 hosting is not ported/tested yet.  Contact if you would like this functionality.
 
 SPECIAL THANKS
